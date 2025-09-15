@@ -1,0 +1,28 @@
+name: EC2 Host Info
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fetch-ec2-info:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Save SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SERVER_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+      - name: SSH into EC2 and run commands
+        run: |
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "hostname && date" > ec2_info.txt
+
+      - name: Upload output as artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: ec2-host-info
+          path: ec2_info.txt
