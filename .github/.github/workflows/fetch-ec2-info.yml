@@ -1,0 +1,36 @@
+name: Fetch EC2 Info and Commit
+
+on:
+  workflow_dispatch:  # allows manual trigger
+
+jobs:
+  fetch-ec2-info:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SERVER_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+      - name: SSH into EC2 and fetch hostname & date
+        run: |
+          TIMESTAMP=$(date +'%Y%m%d-%H%M%S')
+          mkdir -p ec2_output
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
+            "hostname && date" > ec2_output/ec2_info_$TIMESTAMP.txt
+
+      - name: Commit and push output
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+          git add ec2_output/ec2_info_*.txt
+          git commit -m "Update EC2 info $TIMESTAMP" || echo "No changes to commit"
+          git push origin main
+
